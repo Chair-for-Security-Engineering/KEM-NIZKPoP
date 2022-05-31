@@ -1,0 +1,11 @@
+tvecs1024
+tvecs1024-90s
+tvecs512
+tvecs512-90s
+tvecs768
+tvecs768-90s
+
+make.log
+avx2/kyber*_N*_tau*
+avx2/kybercycles*
+.DS_Store

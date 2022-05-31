@@ -1,0 +1,66 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.5in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+
+\begin{document}
+	\begin{algorithm}[H]
+	\centering
+	\caption{KeyGen with NIZKPoP Prover}\label{keygen}
+	\begin{algorithmic}[1]
+		\State $v_k\overset{\$}{\leftarrow}\chi_q \quad\forall k\in\{1,\ldots,M\}$
+		\State $seed_{ij}\overset{\$}{\leftarrow}\{0,1\}^{256}\quad\forall (i,j)\in\{1,\ldots,N-1\}\times\{1,\ldots,\tau\}$
+		\State $v_{ij}:=\text{SampleUniform}(seed_{ij})\in\mathbb{Z}_q^M\quad\forall (i,j)\in\{1,\ldots,N-1\}\times\{1,\ldots,\tau\}$ \Comment{SHAKE}
+		\State $v_{Njk}:=v_k-\sum_{i=1}^{N-1}v_{ijk}\quad\forall (j,k)\in\{1,\ldots,\tau\}\times\{1,\ldots,M\}$
+		\State $h_{ij}:=H(seed_{ij})\quad\forall(i,j)\in\{1,\ldots,N-1\}\times\{1,\ldots,\tau\}$ \Comment{H is instantiated with SHAKE}
+		\State $h_{k}:=H(v_k)\quad\forall k\in\{1,\ldots,M\}$
+		\State $h:=H(\{h_{ij},h_k\})$
+		\State with $h$ as input, sample $M-\sigma$ pairwise distinct indices $b_k$ from $\{1,\ldots,M\}$ \Comment{SHAKE}
+		\State compose matrices $S_{ij},E_{ij}$ (each $n\times\bar{n}$) from $v_{ijk}$ where $k\not\in\{b_k\}$
+		%\State $S_{ijk},E_{ijk} := v_{ijl}\quad\forall(i,j,k,l)\in\{1,\ldots,N\}\times\{1,\ldots,\tau\}\times\{1,\ldots,\sigma\}\times\{1,\ldots,M\}\setminus\{b_k\}$ 
+		\State compose $n\times\bar{n}$ matrices $S,E$ from $v_k$ where $k\not\in\{b_k\}$ \Comment{one has $S=\sum_{i=1}^{N}S_{ij}\forall j$ and $E=\sum_{i=1}^{N}E_{ij}\forall j$}
+		\State generate $n\times n$ matrix $A$
+		\State $B:=AS+E$
+		\State $B_{ij}:=AS_{ij}+E_{ij}\quad\forall (i,j)\in\{1,\ldots,N\}\times\{1,\ldots,\tau\}$
+		\State $h_{B_{ij}}:=H(B_{ij})\quad\forall (i,j)\in\{1,\ldots,N\}\times\{1,\ldots,\tau\}$
+		\State $h_B:=H(\{h_{B_{ij}}\})$
+		\State with $h,v_{ijk},h_B,B,A\forall(i,j,k)\in\{1,\ldots,N\}\times\{1,\ldots,\tau\}\times\{b_k\}$ as input, sample hidden party $r_j\in\{1,\ldots,N\}$ for each $j\in\{1,\ldots,\tau\}$
+		\State \Return $pk=(A,B),sk=S$ and the proof: \begin{itemize}
+			\item all $b_k$
+			\item all $r_i$
+			\item $h$
+			\item $h_B$
+			\item $h_k \forall k\in \{1,\ldots,M\}\setminus\{b_k\}$
+			\item $h_{r_jj}\forall j\in\{1,\ldots,\tau\}\wedge r_j\neq N$
+			\item $v_{ijk}\forall(i,j,k)\in\{1,\ldots,N\}\times\{1,\ldots,\tau\}\times\{b_k\}$
+			\item $B_{r_jj}\forall j\in\{1,\ldots,\tau\}$
+			\item $S_{Nj},E_{Nj}\forall j\in\{l : r_l\neq N\}$
+			\item $seed_{ij}\forall(i,j)\in(\{1,\ldots,N-1\}\times\{1,\ldots,\tau\})\setminus\{(r_l,l):1\leq l\leq\tau\}$
+		\end{itemize}
+	\end{algorithmic}
+	\end{algorithm}
+
+\begin{algorithm}[H]
+\centering
+\caption{NIZKPoP Verifier}\label{verify}
+\begin{algorithmic}[1]
+	\State check if $|\sum_{i=1}^{N}v_{ij0}|\leq s$ for all $j\in\{1,\ldots,\tau\}$
+	\State check if $\sum_{i=1}^{N}v_{i0k} = \sum_{i=1}^{N}v_{ijk}$ for all $(j,k)\in\{2,\ldots,\tau\}\times\{b_k\}$
+	\State compute $S_{ij},E_{ij}$ for all $i\not\in\{r_j\}$
+	\State compute $B_{ij}$ for all $i\not\in\{r_j\}$
+	\State check if $B=\sum_{i=1}^{N}B_{ij}$ for all $j\in\{1,\ldots,\tau\}$
+	\State check if $h_B=H(\{H(B_{ij})\})$
+	\State compute $h_{ij}:=H(seed_{ij})$ for all $(i,j)\in(\{1,\ldots,N-1\}\times\{1,\ldots,\tau\})\setminus\{(r_l,l):1\leq l\leq\tau\}$
+	\State compute $h_k:=H(\sum_{i=1}^{N}v_{i0k})$ for all $k\in\{b_k\}$
+	\State check if $h=H(\{h_{ij},h_k\})$
+	\State sample $b_k^*$ from $h$ and check if equal to $b_k$
+	\State sample $r_j^*$ from $h,v_{ijk},h_B,B,A\forall(i,j,k)\in\{1,\ldots,N\}\times\{1,\ldots,\tau\}\times\{b_k\}$ and check if equal to $r_j$
+\end{algorithmic}
+\end{algorithm}
+\end{document}
